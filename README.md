@@ -1,8 +1,9 @@
 # The Intern Wire
 
-Scrapes internship posts from **LinkedIn** and **X/Twitter** — no login or
-signup anywhere — and shows them in a dashboard where every listing links
-straight to the original post. Currently tuned for **India + remote**
+Scrapes internships from **LinkedIn job listings**, **LinkedIn feed posts**
+(the informal "Hiring: …" posts), and **X/Twitter** — no login or signup
+anywhere — and shows them in a dashboard where every listing links straight
+to the original post. Currently tuned for **India + remote**
 internships. The server re-scrapes itself every 8 hours, so once deployed it
 stays fresh with zero extra setup.
 
@@ -39,6 +40,12 @@ button on the dashboard triggers one on demand.
     "pages_per_query": 2,       // 25 results per page
     "delay_seconds": 2.0        // politeness delay between requests
   },
+  "linkedin_posts": {
+    "queries": ["site:linkedin.com/posts \"hiring interns\"", "..."],
+    "timeframe": "w",           // search freshness: d / w / m
+    "region": "in-en",
+    "max_per_query": 25
+  },
   "twitter": {
     "accounts": ["Internshala", "GitHubEducation"],  // timelines to follow
     "keywords": ["intern"],     // keep tweets containing any of these
@@ -46,6 +53,8 @@ button on the dashboard triggers one on demand.
   }
 }
 ```
+
+`python -m app.scrape` takes `--source linkedin|posts|twitter|all`.
 
 Environment variables (all optional):
 
@@ -60,6 +69,13 @@ Environment variables (all optional):
 - **LinkedIn** — the public *jobs-guest* endpoint served to logged-out
   visitors, filtered to internship job type (`f_JT=I`) and, where configured,
   remote workplace type (`f_WT=2`). Low volume + delays + backoff on 429.
+- **LinkedIn feed posts** — the feed itself is behind LinkedIn's authwall,
+  but public posts are indexed by search engines under `linkedin.com/posts/`.
+  The `ddgs` library queries those indexes (rotating across search backends,
+  no API key) for fresh internship-hiring posts. Noisier than the jobs feed
+  and post dates aren't available, but it catches the informal "DM me to
+  apply" openings that never become job listings. Tune the search queries in
+  `config.json` (`linkedin_posts.queries`, freshness `timeframe`: d/w/m).
 - **X/Twitter** — X removed logged-out search in 2024 and the public Nitter
   mirrors are bot-walled, so keyword search without an account isn't
   possible. Instead the scraper follows accounts via X's public syndication

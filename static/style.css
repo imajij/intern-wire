@@ -256,6 +256,7 @@ main { max-width: 1060px; margin: 0 auto; }
   opacity: .85;
 }
 .stamp.linkedin { color: var(--li-ink); }
+.stamp.lipost   { color: var(--red); transform: rotate(-1.6deg); }
 .stamp.twitter  { color: var(--ink); transform: rotate(1.8deg); }
 
 .apply {

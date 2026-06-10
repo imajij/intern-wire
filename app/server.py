@@ -80,7 +80,7 @@ def list_internships(
             " OR location LIKE ? OR snippet LIKE ?)"
         )
         params += [f"%{q}%"] * 4
-    if source in ("linkedin", "twitter"):
+    if source in ("linkedin", "linkedin-post", "twitter"):
         sql += " AND source = ?"
         params.append(source)
     if days:

@@ -49,8 +49,9 @@ function relativeDate(iso) {
 
 function renderItem(item, i) {
   const isTweet = item.source === "twitter";
+  const isPost = item.source === "linkedin-post";
   const no = String(i + 1).padStart(3, "0");
-  const title = isTweet
+  const title = isTweet || isPost
     ? `<span class="tweet-quote">“${esc(item.title)}”</span>`
     : esc(item.title);
   const company = item.company
@@ -58,8 +59,10 @@ function renderItem(item, i) {
   const location = item.location ? `<span>${esc(item.location)}</span>` : "";
   const stamp = isTweet
     ? `<span class="stamp twitter">VIA X</span>`
-    : `<span class="stamp linkedin">LINKEDIN</span>`;
-  const applyLabel = isTweet ? "VIEW POST ↗" : "APPLY ↗";
+    : isPost
+      ? `<span class="stamp lipost">LI POST</span>`
+      : `<span class="stamp linkedin">LINKEDIN</span>`;
+  const applyLabel = isTweet || isPost ? "VIEW POST ↗" : "APPLY ↗";
   const delay = Math.min(i, 18) * 0.04;
 
   return `<li class="listing" style="animation-delay:${delay}s">

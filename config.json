@@ -13,6 +13,16 @@
     "pages_per_query": 2,
     "delay_seconds": 2.0
   },
+  "linkedin_posts": {
+    "queries": [
+      "site:linkedin.com/posts \"internship\" (\"apply\" OR \"hiring\") India",
+      "site:linkedin.com/posts \"hiring interns\"",
+      "site:linkedin.com/posts intern remote apply"
+    ],
+    "timeframe": "w",
+    "region": "in-en",
+    "max_per_query": 25
+  },
   "twitter": {
     "accounts": [
       "Internshala",

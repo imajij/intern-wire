@@ -10,7 +10,7 @@ import json
 import pathlib
 
 from . import db
-from .scrapers import linkedin, twitter
+from .scrapers import linkedin, linkedin_posts, twitter
 
 CONFIG_PATH = pathlib.Path(__file__).resolve().parent.parent / "config.json"
 
@@ -20,7 +20,10 @@ def load_config() -> dict:
         return json.load(f)
 
 
-def run(sources: tuple[str, ...] = ("linkedin", "twitter")) -> dict:
+ALL_SOURCES = ("linkedin", "posts", "twitter")
+
+
+def run(sources: tuple[str, ...] = ALL_SOURCES) -> dict:
     config = load_config()
     counts = {}
     conn = db.connect()
@@ -35,6 +38,16 @@ def run(sources: tuple[str, ...] = ("linkedin", "twitter")) -> dict:
                 delay_seconds=li.get("delay_seconds", 2.0),
             )
             counts["linkedin"] = {"found": len(rows), "new": db.upsert(conn, rows)}
+        if "posts" in sources and "linkedin_posts" in config:
+            print("[scrape] linkedin posts…")
+            lp = config["linkedin_posts"]
+            rows = linkedin_posts.scrape(
+                queries=lp["queries"],
+                timeframe=lp.get("timeframe", "w"),
+                region=lp.get("region", "in-en"),
+                max_per_query=lp.get("max_per_query", 25),
+            )
+            counts["linkedin_posts"] = {"found": len(rows), "new": db.upsert(conn, rows)}
         if "twitter" in sources:
             print("[scrape] twitter/x…")
             tw = config["twitter"]
@@ -54,11 +67,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Scrape internship posts.")
     parser.add_argument(
         "--source",
-        choices=["linkedin", "twitter", "all"],
+        choices=["linkedin", "posts", "twitter", "all"],
         default="all",
     )
     args = parser.parse_args()
-    sources = ("linkedin", "twitter") if args.source == "all" else (args.source,)
+    sources = ALL_SOURCES if args.source == "all" else (args.source,)
     run(sources)
 
 
