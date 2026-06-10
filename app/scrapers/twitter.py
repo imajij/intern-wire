@@ -14,7 +14,9 @@ to the real post.
 
 import datetime
 import json
+import random
 import re
+import time
 
 import requests
 
@@ -46,8 +48,16 @@ def _parse_created_at(raw: str) -> str | None:
         return None
 
 
-def _fetch_timeline(session: requests.Session, account: str) -> list[dict]:
-    resp = session.get(TIMELINE_URL.format(account=account), timeout=20)
+def _fetch_timeline(
+    session: requests.Session, account: str, retries: int = 4
+) -> list[dict]:
+    # shared datacenter IPs (e.g. GitHub Actions) often get 429s — back off
+    for attempt in range(retries):
+        resp = session.get(TIMELINE_URL.format(account=account), timeout=20)
+        if resp.status_code == 429 and attempt < retries - 1:
+            time.sleep(12 * (attempt + 1) + random.random() * 3)
+            continue
+        break
     resp.raise_for_status()
     match = _NEXT_DATA.search(resp.text)
     if not match:
@@ -74,6 +84,7 @@ def scrape(
     seen: set[str] = set()
 
     for account in accounts:
+        time.sleep(2 + random.random())
         try:
             tweets = _fetch_timeline(session, account.lstrip("@"))
         except (requests.RequestException, KeyError, json.JSONDecodeError) as exc:
