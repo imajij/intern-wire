@@ -1,0 +1,9 @@
+# internships.db and static/data.json ARE committed — the GitHub Actions
+# workflow updates them on every scheduled scrape.
+.venv/
+__pycache__/
+*.pyc
+internships.db-wal
+internships.db-shm
+scrape.log
+.claude/

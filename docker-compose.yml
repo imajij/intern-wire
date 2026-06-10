@@ -1,0 +1,13 @@
+services:
+  wire:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - SCRAPE_INTERVAL_HOURS=8
+    volumes:
+      - wire-data:/data
+
+volumes:
+  wire-data:

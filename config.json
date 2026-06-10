@@ -1,0 +1,26 @@
+{
+  "linkedin": {
+    "keywords": [
+      "software engineer intern",
+      "machine learning intern",
+      "data science intern"
+    ],
+    "locations": [
+      "India",
+      { "location": "India", "remote": true },
+      { "location": "Worldwide", "remote": true }
+    ],
+    "pages_per_query": 2,
+    "delay_seconds": 2.0
+  },
+  "twitter": {
+    "accounts": [
+      "Internshala",
+      "GitHubEducation",
+      "MLHacks",
+      "joinhandshake"
+    ],
+    "keywords": ["intern"],
+    "max_per_account": 20
+  }
+}

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Intern Wire — internships, scraped fresh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..900,0,1&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-topline">
+    <span id="edition">EST. 2026</span>
+    <span id="dateline">—</span>
+    <span id="tally">0 LISTINGS ON FILE</span>
+  </div>
+  <h1 class="masthead-title">The&nbsp;Intern&nbsp;Wire</h1>
+  <p class="masthead-tagline">
+    INTERNSHIPS SCRAPED FRESH FROM <b>LINKEDIN</b> &amp; <b>X / TWITTER</b>
+    &nbsp;·&nbsp; NO LOGIN, NO SIGNUP — EVERY LISTING LINKS TO THE ORIGINAL POST
+  </p>
+</header>
+
+<nav class="toolbar" aria-label="filters">
+  <div class="search-wrap">
+    <span class="search-glyph" aria-hidden="true">⌕</span>
+    <input id="search" type="search" placeholder="SEARCH THE WIRE — role, company, city…" autocomplete="off" />
+  </div>
+
+  <div class="chips" id="source-chips" role="group" aria-label="source filter">
+    <button class="chip is-active" data-source="">ALL</button>
+    <button class="chip" data-source="linkedin">LINKEDIN</button>
+    <button class="chip" data-source="twitter">X&nbsp;/&nbsp;TWITTER</button>
+  </div>
+
+  <select id="days" aria-label="freshness">
+    <option value="0">ANY TIME</option>
+    <option value="1">LAST 24H</option>
+    <option value="7">LAST 7 DAYS</option>
+    <option value="30">LAST 30 DAYS</option>
+  </select>
+
+  <button id="refresh" class="stamp-btn" title="Run the scrapers again">
+    <span class="stamp-btn-label">RE-SCRAPE</span><span class="stamp-btn-glyph">⟳</span>
+  </button>
+</nav>
+
+<main>
+  <div id="status-line" class="status-line" hidden></div>
+  <ol id="listings" class="listings"></ol>
+
+  <div id="empty" class="empty" hidden>
+    <p class="empty-headline">THE WIRE IS EMPTY.</p>
+    <p>No listings match — or nothing has been scraped yet. From the project folder, run:</p>
+    <pre>.venv/bin/python -m app.scrape</pre>
+    <p>then reload this page, or hit <b>RE-SCRAPE ⟳</b> above.</p>
+  </div>
+</main>
+
+<footer class="colophon">
+  <span>ALL LINKS POINT TO THE ORIGINAL POSTS — APPLY AT THE SOURCE.</span>
+  <span>SCRAPED POLITELY · PUBLIC LISTINGS ONLY · <span id="last-scraped">NEVER SCRAPED</span></span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
