@@ -10,7 +10,7 @@ import datetime
 import json
 import pathlib
 
-from . import db, picks
+from . import store
 from .scrapers import linkedin, linkedin_posts, twitter
 
 CONFIG_PATH = pathlib.Path(__file__).resolve().parent.parent / "config.json"
@@ -44,48 +44,44 @@ def run(sources: tuple[str, ...] = ALL_SOURCES) -> dict:
     config = load_config()
     max_age_days = int(config.get("max_age_days", DEFAULT_MAX_AGE_DAYS))
     counts = {}
-    conn = db.connect()
-    try:
-        purged = db.purge_stale(conn, max_age_days)
-        if purged:
-            print(f"[scrape] purged {purged} stale listings (older than {max_age_days}d)")
-        synced = picks.sync_db(conn)
-        if synced:
-            print(f"[scrape] picks.json: {synced['picks']} picks ({synced['removed']} removed)")
-        if "linkedin" in sources:
-            print("[scrape] linkedin…")
-            li = config["linkedin"]
-            rows = linkedin.scrape(
-                keywords=li["keywords"],
-                locations=li["locations"],
-                pages_per_query=li.get("pages_per_query", 2),
-                delay_seconds=li.get("delay_seconds", 2.0),
-            )
-            rows = drop_stale(rows, max_age_days, "linkedin")
-            counts["linkedin"] = {"found": len(rows), "new": db.upsert(conn, rows, max_age_days)}
-        if "posts" in sources and "linkedin_posts" in config:
-            print("[scrape] linkedin posts…")
-            lp = config["linkedin_posts"]
-            rows = linkedin_posts.scrape(
-                queries=lp["queries"],
-                timeframe=lp.get("timeframe", "w"),
-                region=lp.get("region", "in-en"),
-                max_per_query=lp.get("max_per_query", 25),
-            )
-            rows = drop_stale(rows, max_age_days, "li-posts")
-            counts["linkedin_posts"] = {"found": len(rows), "new": db.upsert(conn, rows, max_age_days)}
-        if "twitter" in sources:
-            print("[scrape] twitter/x…")
-            tw = config["twitter"]
-            rows = twitter.scrape(
-                accounts=tw["accounts"],
-                keywords=tw.get("keywords", ["intern"]),
-                max_per_account=tw.get("max_per_account", 20),
-            )
-            rows = drop_stale(rows, max_age_days, "twitter")
-            counts["twitter"] = {"found": len(rows), "new": db.upsert(conn, rows, max_age_days)}
-    finally:
-        conn.close()
+    purged = store.purge_stale(max_age_days)
+    if purged:
+        print(f"[scrape] purged {purged} stale listings (older than {max_age_days}d)")
+    synced = store.sync_picks()
+    if synced:
+        print(f"[scrape] picks.json: {synced['picks']} picks ({synced['removed']} removed)")
+    if "linkedin" in sources:
+        print("[scrape] linkedin…")
+        li = config["linkedin"]
+        rows = linkedin.scrape(
+            keywords=li["keywords"],
+            locations=li["locations"],
+            pages_per_query=li.get("pages_per_query", 2),
+            delay_seconds=li.get("delay_seconds", 2.0),
+        )
+        rows = drop_stale(rows, max_age_days, "linkedin")
+        counts["linkedin"] = {"found": len(rows), "new": store.upsert(rows, max_age_days)}
+    if "posts" in sources and "linkedin_posts" in config:
+        print("[scrape] linkedin posts…")
+        lp = config["linkedin_posts"]
+        rows = linkedin_posts.scrape(
+            queries=lp["queries"],
+            timeframe=lp.get("timeframe", "w"),
+            region=lp.get("region", "in-en"),
+            max_per_query=lp.get("max_per_query", 25),
+        )
+        rows = drop_stale(rows, max_age_days, "li-posts")
+        counts["linkedin_posts"] = {"found": len(rows), "new": store.upsert(rows, max_age_days)}
+    if "twitter" in sources:
+        print("[scrape] twitter/x…")
+        tw = config["twitter"]
+        rows = twitter.scrape(
+            accounts=tw["accounts"],
+            keywords=tw.get("keywords", ["intern"]),
+            max_per_account=tw.get("max_per_account", 20),
+        )
+        rows = drop_stale(rows, max_age_days, "twitter")
+        counts["twitter"] = {"found": len(rows), "new": store.upsert(rows, max_age_days)}
     print(f"[scrape] done: {counts}")
     return counts
 

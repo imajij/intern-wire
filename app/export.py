@@ -7,28 +7,15 @@ import datetime
 import json
 import pathlib
 
-from . import db
+from . import store
 
 OUT_PATH = pathlib.Path(__file__).resolve().parent.parent / "static" / "data.json"
 LIMIT = 2000  # newest listings; keeps the payload small forever
 
 
 def main() -> None:
-    conn = db.connect()
-    try:
-        items = [
-            dict(r)
-            for r in conn.execute(
-                "SELECT * FROM internships"
-                " ORDER BY COALESCE(posted_at, scraped_at) DESC, id DESC LIMIT ?",
-                (LIMIT,),
-            )
-        ]
-        last = conn.execute(
-            "SELECT MAX(scraped_at) AS m FROM internships"
-        ).fetchone()["m"]
-    finally:
-        conn.close()
+    items = store.list_internships(limit=LIMIT)
+    last = store.stats()["last_scraped"]
 
     by_source: dict[str, int] = {}
     for item in items:

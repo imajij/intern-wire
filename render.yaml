@@ -1,0 +1,19 @@
+# Render blueprint — deploy with "New → Blueprint" at render.com.
+# Set MONGODB_URI (Atlas connection string) and ADMIN_TOKEN in the dashboard
+# when prompted; they are marked sync:false so they never live in git.
+services:
+  - type: web
+    name: intern-wire
+    runtime: docker
+    plan: free
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false
+      # free instances sleep when idle, so the in-process scheduler can't be
+      # trusted with scraping — let the GitHub Actions cron write to Atlas
+      # instead (set the MONGODB_URI repo secret). The dashboard's RE-SCRAPE
+      # button still triggers on-demand runs.
+      - key: SCRAPE_INTERVAL_HOURS
+        value: "0"

@@ -33,11 +33,19 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # With the MONGODB_URI secret set, both steps read/write MongoDB Atlas
+      # instead of internships.db — the Pages site then mirrors Atlas, and a
+      # server pointed at the same URI (e.g. on Render) stays fresh even
+      # while its free instance sleeps.
       - name: Scrape
         run: python -m app.scrape
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
 
       - name: Export static data
         run: python -m app.export
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
 
       - name: Commit updated data
         run: |

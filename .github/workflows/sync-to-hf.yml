@@ -1,0 +1,30 @@
+name: Sync to Hugging Face Space
+
+# Mirrors main to a Hugging Face Space (which then rebuilds and redeploys).
+# Enable it by setting, under repo Settings → Secrets and variables → Actions:
+#   - variable HF_SPACE  e.g. "youruser/intern-wire"
+#   - secret   HF_TOKEN  a huggingface.co token with write access
+# Does nothing until both exist. Note: data commits made by the scrape
+# workflow's bot don't trigger this (GITHUB_TOKEN pushes never trigger
+# workflows) — that's fine, the Space reads live data from MongoDB anyway.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  sync:
+    if: vars.HF_SPACE != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the Space needs full history to accept the push
+
+      - name: Push to the Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+        run: |
+          git push --force "https://${HF_SPACE%%/*}:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" HEAD:main

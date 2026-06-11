@@ -1,3 +1,13 @@
+---
+title: The Intern Wire
+emoji: 📰
+colorFrom: gray
+colorTo: yellow
+sdk: docker
+app_port: 8000
+pinned: false
+---
+
 # The Intern Wire
 
 Scrapes internships from **LinkedIn job listings**, **LinkedIn feed posts**
@@ -66,9 +76,10 @@ Environment variables (all optional):
 |---|---|---|
 | `SCRAPE_INTERVAL_HOURS` | `8` | re-scrape cadence; `0` disables the scheduler |
 | `DB_PATH` | `./internships.db` | SQLite location (containers use `/data/internships.db`) |
+| `MONGODB_URI` | *(unset)* | store data in MongoDB instead of SQLite — no disk needed (see [MongoDB Atlas + Hugging Face Spaces](#mongodb-atlas--hugging-face-spaces-free-live-admin-page)) |
 | `PORT` | `8000` | listen port (set automatically by most PaaS hosts) |
 | `ADMIN_TOKEN` | *(unset)* | enables the Editor's Desk admin page + API; unset = admin disabled |
-| `PICKS_PATH` | `./picks.json` | where hand-picked listings live (containers use `/data/picks.json`) |
+| `PICKS_PATH` | `./picks.json` | where hand-picked listings live (SQLite mode only; containers use `/data/picks.json`) |
 
 ## The Editor's Desk (admin)
 
@@ -101,11 +112,14 @@ rate-limited, but a guessable token is still a guessable token. The header
 travels in cleartext over plain HTTP, so if the desk is reachable from the
 internet, put HTTPS in front before unlocking it there.
 
-Picks are stored in **`picks.json`** (at `PICKS_PATH`), not just the
-database — every scrape run syncs the file into the database, so it is the
-source of truth: entries added there appear as `manual` rows, and manual
-rows missing from it are removed. That makes publishing picks on the static
-GitHub Pages deployment a plain-text git operation:
+In **MongoDB mode** (`MONGODB_URI` set) picks simply live in the database —
+nothing below applies, and admins can file picks from the deployed site
+directly. In **SQLite mode** picks are stored in **`picks.json`** (at
+`PICKS_PATH`), not just the database — every scrape run syncs the file into
+the database, so it is the source of truth: entries added there appear as
+`manual` rows, and manual rows missing from it are removed. That makes
+publishing picks on the static GitHub Pages deployment a plain-text git
+operation:
 
 1. Run the server locally with `ADMIN_TOKEN` set and file your picks.
 2. Commit and push `picks.json` (just the text file — leave
@@ -161,9 +175,56 @@ Notes: GitHub disables cron workflows after ~60 days without repo activity
 activity). If LinkedIn ever blocks GitHub's runner IPs, run
 `python -m app.scrape && python -m app.export` locally and push.
 
-The options below run the actual server (live RE-SCRAPE button, API), which
-needs a host with a persistent disk. The built-in scheduler handles the
-8-hourly scans; no external cron needed.
+### MongoDB Atlas + Hugging Face Spaces (free, live admin page)
+
+The Pages deployment above is read-only — admins can't file picks through
+the live site. This recipe runs the real server for free, no credit card:
+storage moves to MongoDB Atlas (free M0 cluster) so no disk is needed, and
+the container runs on a free Hugging Face Space (the YAML block at the top
+of this README is the Space's config — `sdk: docker`, port 8000).
+
+1. **Atlas** — create a free cluster at
+   [mongodb.com/atlas](https://www.mongodb.com/atlas), add a database user,
+   and under *Network Access* allow `0.0.0.0/0` (free hosts don't have fixed
+   egress IPs). Copy the connection string and put a database name in the
+   path, e.g. `mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/internwire`.
+2. **Create the Space** — at [huggingface.co/new-space](https://huggingface.co/new-space):
+   SDK **Docker** → **Blank** template, hardware **CPU basic (free)**.
+3. **Secrets** — in the Space: **Settings → Variables and secrets**, add
+   `MONGODB_URI` and `ADMIN_TOKEN` as *secrets* (they become env vars).
+4. **Push the code** — grab a *write* token from
+   [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), then:
+
+   ```bash
+   git push --force https://<hf-user>:<hf-token>@huggingface.co/spaces/<hf-user>/<space> main
+   ```
+
+   Or let GitHub do it on every push: add the token as an Actions secret
+   named `HF_TOKEN` and a repository *variable* `HF_SPACE` (e.g.
+   `youruser/intern-wire`) — the `sync-to-hf.yml` workflow takes it from there.
+
+The app lives at `https://<hf-user>-<space>.hf.space` (underscores become
+dashes). **Use that direct URL, not the huggingface.co page** — the Space
+page embeds the app in an iframe where browsers partition localStorage, so
+the admin unlock won't stick there.
+
+Free Spaces pause after ~48h without visitors (the next visit wakes them in
+under a minute), and the in-process scheduler only runs while awake — so
+also add `MONGODB_URI` as a GitHub Actions secret (**Settings → Secrets and
+variables → Actions**) and the existing scrape workflow writes straight to
+Atlas every 8 hours regardless. The Pages site keeps working too:
+`app.export` reads Atlas and publishes the same data. Both writers dedupe
+on URL, so they can't conflict.
+
+To run Mongo mode locally:
+`MONGODB_URI=... ADMIN_TOKEN=... .venv/bin/uvicorn app.server:app --port 8000`.
+Prefer Render instead of a Space? A `render.yaml` blueprint is included —
+**New → Blueprint** at [render.com](https://render.com) and fill in the
+same two secrets (note its free tier sleeps after ~15 idle minutes).
+
+The options below also run the actual server, with SQLite on a host with a
+persistent disk instead. The built-in scheduler handles the 8-hourly scans;
+no external cron needed.
 
 ### Railway (simplest paid PaaS, ~$5/mo)
 
@@ -224,7 +285,9 @@ blocked, raise `delay_seconds`, lower `pages_per_query`, or run
 ## Notes
 
 - Data lives in SQLite (`internships.db` locally, `/data/internships.db` in
-  containers), deduped by original post URL. Delete the file to start fresh.
+  containers) or MongoDB when `MONGODB_URI` is set — same JSON API either
+  way, deduped by original post URL. Delete the file / drop the database to
+  start fresh.
 - Both platforms' terms restrict automated collection; this only touches
   public, logged-out pages at low volume. Run it politely and at your own
   discretion.

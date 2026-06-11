@@ -123,7 +123,7 @@ function renderPick(item) {
   const note = item.snippet
     ? `<p class="listing-note">${esc(item.snippet)}</p>` : "";
   return `<li class="listing" data-id="${item.id}">
-    <span class="listing-no">№ ${String(item.id).padStart(3, "0")}</span>
+    <span class="listing-no">№ ${esc(String(item.id).slice(-3).padStart(3, "0").toUpperCase())}</span>
     <h2 class="listing-title">
       <a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${esc(item.title)}</a>
     </h2>
