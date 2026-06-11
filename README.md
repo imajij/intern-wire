@@ -192,16 +192,23 @@ of this README is the Space's config — `sdk: docker`, port 8000).
    SDK **Docker** → **Blank** template, hardware **CPU basic (free)**.
 3. **Secrets** — in the Space: **Settings → Variables and secrets**, add
    `MONGODB_URI` and `ADMIN_TOKEN` as *secrets* (they become env vars).
-4. **Push the code** — grab a *write* token from
-   [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), then:
+4. **Push the code** — easiest is letting GitHub do it on every push: grab
+   a *write* token from
+   [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens),
+   add it as an Actions secret named `HF_TOKEN` plus a repository *variable*
+   `HF_SPACE` (e.g. `youruser/intern-wire`) — the `sync-to-hf.yml` workflow
+   takes it from there. To push by hand instead, ship a history-free
+   snapshot (HF rejects the bot-committed `internships.db` binaries that
+   live in main's history, and the Space needs neither — data comes from
+   Mongo):
 
    ```bash
-   git push --force https://<hf-user>:<hf-token>@huggingface.co/spaces/<hf-user>/<space> main
+   git checkout --orphan hf-deploy        # one fresh commit, no history
+   git rm -q --cached internships.db      # HF rejects plain-git binaries
+   git commit -qm "deploy snapshot"
+   git push --force https://<hf-user>:<hf-token>@huggingface.co/spaces/<hf-user>/<space> HEAD:main
+   git checkout main && git branch -D hf-deploy
    ```
-
-   Or let GitHub do it on every push: add the token as an Actions secret
-   named `HF_TOKEN` and a repository *variable* `HF_SPACE` (e.g.
-   `youruser/intern-wire`) — the `sync-to-hf.yml` workflow takes it from there.
 
 The app lives at `https://<hf-user>-<space>.hf.space` (underscores become
 dashes). **Use that direct URL, not the huggingface.co page** — the Space

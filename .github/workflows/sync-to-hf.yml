@@ -19,12 +19,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # the Space needs full history to accept the push
 
-      - name: Push to the Space
+      - name: Push a snapshot to the Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE: ${{ vars.HF_SPACE }}
         run: |
+          # HF rejects binary files in plain git, and main's history is full
+          # of bot-committed internships.db versions — so never mirror
+          # history. Ship one fresh commit with the database dropped: the
+          # Space doesn't need it (Docker ignores *.db; data lives in Mongo).
+          rm -f internships.db
+          git checkout -q --orphan hf-deploy
+          git add -A
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "deploy: snapshot of ${GITHUB_SHA::7}"
           git push --force "https://${HF_SPACE%%/*}:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" HEAD:main
