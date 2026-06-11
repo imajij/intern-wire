@@ -25,6 +25,13 @@ CREATE TABLE IF NOT EXISTS internships (
 );
 CREATE INDEX IF NOT EXISTS idx_internships_source ON internships(source);
 CREATE INDEX IF NOT EXISTS idx_internships_posted ON internships(posted_at);
+
+-- remembers when each URL was first scraped, surviving purges, so a stale
+-- dateless post that search engines keep returning can't re-enter as "new"
+CREATE TABLE IF NOT EXISTS seen_urls (
+  url        TEXT PRIMARY KEY,
+  first_seen TEXT NOT NULL
+);
 """
 
 
@@ -38,10 +45,28 @@ def connect() -> sqlite3.Connection:
     return conn
 
 
-def upsert(conn: sqlite3.Connection, rows) -> int:
-    """Insert rows, skipping URLs already on file. Returns number of new rows."""
+def upsert(conn: sqlite3.Connection, rows, max_age_days: int = 0) -> int:
+    """Insert rows, skipping URLs already on file. Returns number of new rows.
+
+    With max_age_days set, dateless rows whose URL was first seen more than
+    max_age_days ago are skipped — they were purged once already and must not
+    re-enter looking fresh just because a search index still returns them.
+    """
     new = 0
     for row in rows:
+        conn.execute(
+            """INSERT INTO seen_urls (url, first_seen) VALUES (:url, :scraped_at)
+               ON CONFLICT(url) DO NOTHING""",
+            row,
+        )
+        if max_age_days > 0 and not row["posted_at"]:
+            too_old = conn.execute(
+                """SELECT 1 FROM seen_urls
+                   WHERE url = ? AND datetime(first_seen) < datetime('now', ?)""",
+                (row["url"], f"-{max_age_days} day"),
+            ).fetchone()
+            if too_old:
+                continue
         cur = conn.execute(
             """INSERT INTO internships
                  (source, title, company, location, url, posted_at, scraped_at, snippet)
@@ -53,3 +78,56 @@ def upsert(conn: sqlite3.Connection, rows) -> int:
         new += cur.rowcount
     conn.commit()
     return new
+
+
+def put_manual(conn: sqlite3.Connection, row: dict) -> dict:
+    """Insert a hand-picked row, promoting any scraped row at the same URL.
+    Returns the stored row."""
+    stored = conn.execute(
+        """INSERT INTO internships
+             (source, title, company, location, url, posted_at, scraped_at, snippet)
+           VALUES
+             ('manual', :title, :company, :location, :url, :posted_at, :scraped_at, :snippet)
+           ON CONFLICT(url) DO UPDATE SET
+             source     = 'manual',
+             title      = excluded.title,
+             company    = excluded.company,
+             location   = excluded.location,
+             posted_at  = excluded.posted_at,
+             scraped_at = excluded.scraped_at,
+             snippet    = excluded.snippet
+           RETURNING *""",
+        row,
+    ).fetchone()
+    conn.commit()
+    return dict(stored)
+
+
+def purge_stale(conn: sqlite3.Connection, max_age_days: int) -> int:
+    """Delete scraped rows older than max_age_days. Returns number deleted.
+
+    Rows without a parseable posted_at (e.g. LinkedIn feed posts) age by when
+    they were first scraped. Manually curated rows are never purged — the
+    admin removes those by hand.
+    """
+    if max_age_days <= 0:
+        return 0
+    # remember every URL we're about to forget, so re-discovery can't reset
+    # its age (WHERE true disambiguates SELECT + upsert for SQLite's parser)
+    conn.execute(
+        """INSERT INTO seen_urls (url, first_seen)
+           SELECT url, scraped_at FROM internships WHERE true
+           ON CONFLICT(url) DO NOTHING"""
+    )
+    # COALESCE: unparseable posted_at (date() -> NULL) falls back to scraped_at age
+    cur = conn.execute(
+        """DELETE FROM internships
+           WHERE source != 'manual'
+             AND COALESCE(
+                   date(posted_at) < date('now', ?),
+                   datetime(scraped_at) < datetime('now', ?)
+                 )""",
+        (f"-{max_age_days} day",) * 2,
+    )
+    conn.commit()
+    return cur.rowcount

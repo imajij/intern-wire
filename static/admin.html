@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>The Editor's Desk — The Intern Wire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..900,0,1&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-topline">
+    <a class="back-to-front" href="index.html">← BACK TO THE FRONT PAGE</a>
+    <span id="dateline">—</span>
+    <span>STAFF ONLY</span>
+  </div>
+  <h1 class="masthead-title desk-masthead-title">The&nbsp;Editor&rsquo;s&nbsp;Desk</h1>
+  <p class="masthead-tagline">
+    HAND-PICK INTERNSHIPS FOR THE WIRE — ANYTHING FILED HERE RUNS ON THE
+    FRONT PAGE STAMPED <b>EDITOR'S PICK</b>
+  </p>
+</header>
+
+<main>
+  <!-- static build: no backend to talk to -->
+  <div id="static-notice" class="empty" hidden>
+    <p class="empty-headline">THE DESK IS CLOSED.</p>
+    <p>This is the static build — there's no server to file listings with.
+       Run the desk from the server edition:</p>
+    <pre>ADMIN_TOKEN=&lt;secret&gt; .venv/bin/uvicorn app.server:app --port 8000</pre>
+    <p>then open <b>/admin.html</b> there.</p>
+  </div>
+
+  <!-- locked: ask for the token -->
+  <section id="lock-panel" class="desk-panel" hidden>
+    <h2 class="desk-panel-title">Present your press pass</h2>
+    <p class="desk-panel-sub">THE VALUE OF THE <b>ADMIN_TOKEN</b> ENVIRONMENT VARIABLE THE SERVER WAS STARTED WITH</p>
+    <form id="unlock-form">
+      <label class="desk-field">
+        <span>ADMIN TOKEN <b class="req">*</b></span>
+        <input id="token" type="password" autocomplete="current-password" required />
+      </label>
+      <div class="desk-actions">
+        <button type="submit" class="stamp-btn"><span class="stamp-btn-label">UNLOCK</span></button>
+      </div>
+    </form>
+    <p id="lock-status" class="desk-status err" hidden></p>
+  </section>
+
+  <!-- unlocked: file + manage picks -->
+  <div id="desk" hidden>
+    <section class="desk-panel">
+      <h2 class="desk-panel-title">File a listing</h2>
+      <p class="desk-panel-sub">PASTE THE LINK, GIVE IT A HEADLINE — IT'S LIVE THE MOMENT YOU STAMP IT</p>
+      <form id="add-form">
+        <label class="desk-field">
+          <span>LINK TO THE POSTING <b class="req">*</b></span>
+          <input id="f-url" type="url" placeholder="https://…" required />
+        </label>
+        <label class="desk-field">
+          <span>TITLE <b class="req">*</b></span>
+          <input id="f-title" type="text" placeholder="Software Engineer Intern" maxlength="200" required />
+        </label>
+        <div class="desk-row">
+          <label class="desk-field">
+            <span>COMPANY</span>
+            <input id="f-company" type="text" maxlength="120" />
+          </label>
+          <label class="desk-field">
+            <span>LOCATION</span>
+            <input id="f-location" type="text" placeholder="Remote · India · …" maxlength="120" />
+          </label>
+        </div>
+        <label class="desk-field">
+          <span>EDITOR'S NOTE</span>
+          <textarea id="f-snippet" maxlength="500" placeholder="Deadline, stipend, who to contact…"></textarea>
+        </label>
+        <div class="desk-actions">
+          <button type="submit" class="stamp-btn" id="add-btn">
+            <span class="stamp-btn-label">STAMP IT</span><span class="stamp-btn-glyph">✦</span>
+          </button>
+          <button type="button" class="remove-btn" id="logout-btn" title="Forget the token on this browser">LOCK THE DESK</button>
+        </div>
+      </form>
+      <p id="add-status" class="desk-status" hidden></p>
+    </section>
+
+    <section class="desk-listings">
+      <div class="desk-listings-head">
+        <span>ON FILE FROM THIS DESK</span>
+        <span id="pick-tally">—</span>
+      </div>
+      <p id="picks-status" class="desk-status" hidden></p>
+      <ol id="picks" class="listings"></ol>
+      <p id="picks-empty" class="desk-empty" hidden>NOTHING FILED YET — THE FRONT PAGE AWAITS YOUR FIRST PICK.</p>
+    </section>
+  </div>
+</main>
+
+<footer class="colophon">
+  <span>PICKS NEVER EXPIRE — REMOVE THEM HERE WHEN THEY CLOSE.</span>
+  <span>THE INTERN WIRE · STAFF ENTRANCE</span>
+</footer>
+
+<script src="admin.js"></script>
+</body>
+</html>

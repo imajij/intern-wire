@@ -8,6 +8,7 @@
   --red:        #c8330f;
   --marker:     #ffe25a;
   --li-ink:     #1d5e7c;   /* linkedin stamp */
+  --gold:       #8a6510;   /* editor's-pick stamp */
   --rule:       #1c1712;
 }
 
@@ -232,6 +233,14 @@ main { max-width: 1060px; margin: 0 auto; }
 .listing-title a:hover { background-size: 100% 55%; }
 .listing-title .tweet-quote { font-style: italic; font-weight: 480; }
 
+.listing-note {
+  grid-column: 2;
+  font-size: 12.5px;
+  font-style: italic;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
 .listing-meta {
   grid-column: 2;
   display: flex;
@@ -258,6 +267,7 @@ main { max-width: 1060px; margin: 0 auto; }
 .stamp.linkedin { color: var(--li-ink); }
 .stamp.lipost   { color: var(--red); transform: rotate(-1.6deg); }
 .stamp.twitter  { color: var(--ink); transform: rotate(1.8deg); }
+.stamp.pick     { color: var(--gold); transform: rotate(-1.2deg); border-style: double; border-width: 3px; }
 
 .apply {
   grid-row: span 2;
@@ -316,14 +326,149 @@ main { max-width: 1060px; margin: 0 auto; }
   letter-spacing: .13em;
   color: var(--ink-soft);
 }
+.colophon-link { color: inherit; }
+.colophon-link:hover { color: var(--red); }
+
+/* ── Editor's Desk (admin.html) ────────────────────────────────────────── */
+
+.desk-masthead-title { font-size: clamp(38px, 7vw, 84px); }
+
+.back-to-front {
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.back-to-front:hover { color: var(--red); }
+
+.desk-panel {
+  max-width: 720px;
+  margin: 30px auto 0;
+  border: 1.5px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+  background: var(--paper-deep);
+  padding: 26px clamp(18px, 4vw, 34px) 30px;
+}
+
+.desk-panel-title {
+  font-family: "Fraunces", serif;
+  font-weight: 800;
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+
+.desk-panel-sub {
+  font-size: 11px;
+  letter-spacing: .1em;
+  color: var(--ink-soft);
+  margin-bottom: 18px;
+}
+
+.desk-field { display: block; margin-bottom: 14px; }
+
+.desk-field span {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  margin-bottom: 5px;
+}
+.desk-field .req { display: inline; color: var(--red); }
+
+.desk-field input,
+.desk-field textarea {
+  width: 100%;
+  font: 500 13px/1.45 "IBM Plex Mono", monospace;
+  letter-spacing: .03em;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  padding: 11px 12px;
+  outline: none;
+}
+.desk-field input:focus,
+.desk-field textarea:focus { background: #fff; }
+.desk-field textarea { resize: vertical; min-height: 64px; }
+
+.desk-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.desk-row .desk-field { flex: 1 1 200px; }
+
+.desk-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 6px;
+}
+.desk-actions .stamp-btn { padding: 13px 22px; }
+
+.desk-note {
+  font-size: 11px;
+  letter-spacing: .08em;
+  line-height: 1.7;
+  color: var(--ink-soft);
+}
+
+.desk-status {
+  margin-top: 14px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .1em;
+}
+.desk-status.ok  { color: var(--li-ink); }
+.desk-status.err { color: var(--red); }
+
+.desk-listings { max-width: 720px; margin: 36px auto 0; }
+
+.desk-listings-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1.5px solid var(--rule);
+  padding-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+
+.remove-btn {
+  font: 700 10px/1 "IBM Plex Mono", monospace;
+  letter-spacing: .14em;
+  color: var(--red);
+  background: transparent;
+  border: 1.5px solid var(--red);
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.remove-btn:hover { background: var(--red); color: var(--paper); }
+.remove-btn[disabled] { opacity: .5; cursor: wait; }
+
+.desk-empty {
+  padding: 30px 0;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: .1em;
+  color: var(--ink-soft);
+}
 
 /* ── Small screens ─────────────────────────────────────────────────────── */
 
 @media (max-width: 640px) {
   .listing { grid-template-columns: minmax(0, 1fr); }
   .listing-no { display: none; }
-  .listing-meta { grid-column: 1; }
+  .listing-meta, .listing-note { grid-column: 1; }
   .apply { grid-row: auto; justify-self: start; margin-top: 8px; }
+  .listing .remove-btn { justify-self: start; margin-top: 8px; }
   .masthead-topline { justify-content: center; }
   #edition { display: none; }
+
+  /* five chips no longer fit one rigid strip on narrow phones — let them
+     wrap into a solid block instead of forcing horizontal page scroll */
+  .chips { flex-wrap: wrap; box-shadow: 3px 3px 0 var(--ink); }
+  .chip,
+  .chip:first-child,
+  .chip:last-child {
+    flex: 1 1 auto;
+    padding: 11px 10px;
+    border-right-width: 1.5px;
+    box-shadow: none;
+  }
 }

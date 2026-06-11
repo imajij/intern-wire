@@ -1,4 +1,5 @@
 {
+  "max_age_days": 30,
   "linkedin": {
     "keywords": [
       "software engineer intern",

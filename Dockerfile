@@ -11,6 +11,7 @@ COPY config.json .
 
 # data lives on a mounted volume so listings survive redeploys
 ENV DB_PATH=/data/internships.db \
+    PICKS_PATH=/data/picks.json \
     SCRAPE_INTERVAL_HOURS=8 \
     PORT=8000
 

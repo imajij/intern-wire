@@ -50,6 +50,7 @@ function relativeDate(iso) {
 function renderItem(item, i) {
   const isTweet = item.source === "twitter";
   const isPost = item.source === "linkedin-post";
+  const isPick = item.source === "manual";
   const no = String(i + 1).padStart(3, "0");
   const title = isTweet || isPost
     ? `<span class="tweet-quote">“${esc(item.title)}”</span>`
@@ -61,8 +62,12 @@ function renderItem(item, i) {
     ? `<span class="stamp twitter">VIA X</span>`
     : isPost
       ? `<span class="stamp lipost">LI POST</span>`
-      : `<span class="stamp linkedin">LINKEDIN</span>`;
+      : isPick
+        ? `<span class="stamp pick">EDITOR’S PICK</span>`
+        : `<span class="stamp linkedin">LINKEDIN</span>`;
   const applyLabel = isTweet || isPost ? "VIEW POST ↗" : "APPLY ↗";
+  const note = isPick && item.snippet
+    ? `<p class="listing-note">${esc(item.snippet)}</p>` : "";
   const delay = Math.min(i, 18) * 0.04;
 
   return `<li class="listing" style="animation-delay:${delay}s">
@@ -71,6 +76,7 @@ function renderItem(item, i) {
       <a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${title}</a>
     </h2>
     <a class="apply" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${applyLabel}</a>
+    ${note}
     <div class="listing-meta">
       ${stamp}${company}${location}<span>POSTED ${relativeDate(item.posted_at || item.scraped_at)}</span>
     </div>
@@ -204,6 +210,11 @@ async function detectMode() {
     refreshBtn.hidden = true; // no backend to trigger; GitHub Actions re-scrapes
     const res = await fetch("data.json");
     staticData = await res.json();
+    if (!staticData.by_source?.manual) {
+      // no picks in this build — the chip would only show a dead-end empty
+      // state (remove, not hide, so the X chip becomes :last-child again)
+      document.querySelector('.chip[data-source="manual"]')?.remove();
+    }
   }
   await fetchListings();
   const s = await fetchStats();

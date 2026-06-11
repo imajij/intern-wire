@@ -5,7 +5,10 @@ Scrapes internships from **LinkedIn job listings**, **LinkedIn feed posts**
 anywhere — and shows them in a dashboard where every listing links straight
 to the original post. Currently tuned for **India + remote**
 internships. The server re-scrapes itself every 8 hours, so once deployed it
-stays fresh with zero extra setup.
+stays fresh with zero extra setup. Listings older than `max_age_days`
+(default 30) are dropped at scrape time and purged from the database on
+every run, so the wire never goes stale. An **Editor's Desk** admin page
+lets you hand-pick listings that appear alongside the scraped ones.
 
 ## Run locally
 
@@ -30,6 +33,7 @@ button on the dashboard triggers one on demand.
 
 ```jsonc
 {
+  "max_age_days": 30,          // drop + purge listings older than this (0 = keep forever)
   "linkedin": {
     "keywords":  ["software engineer intern", "..."],
     "locations": [
@@ -63,6 +67,49 @@ Environment variables (all optional):
 | `SCRAPE_INTERVAL_HOURS` | `8` | re-scrape cadence; `0` disables the scheduler |
 | `DB_PATH` | `./internships.db` | SQLite location (containers use `/data/internships.db`) |
 | `PORT` | `8000` | listen port (set automatically by most PaaS hosts) |
+| `ADMIN_TOKEN` | *(unset)* | enables the Editor's Desk admin page + API; unset = admin disabled |
+| `PICKS_PATH` | `./picks.json` | where hand-picked listings live (containers use `/data/picks.json`) |
+
+## The Editor's Desk (admin)
+
+`/admin.html` is a staff-only page for hand-picking listings — paste a link,
+give it a title, and it appears on the front page stamped **EDITOR'S PICK**
+(source `manual`, with its own front-page filter chip). Filing a URL the
+scrapers already found promotes that listing to a pick. Picks are never
+auto-purged; remove them from the same page when they close.
+
+Start the server with a secret of your choosing, then unlock the page with
+that same value:
+
+```bash
+ADMIN_TOKEN=<secret> .venv/bin/uvicorn app.server:app --port 8000
+```
+
+If `ADMIN_TOKEN` is unset, the admin API is disabled entirely. Writes are
+authenticated per request via the `X-Admin-Token` header; the browser keeps
+the token in localStorage until you hit **LOCK THE DESK**. Pick a long
+random value (`openssl rand -hex 24`) — wrong-token attempts are
+rate-limited, but a guessable token is still a guessable token. The header
+travels in cleartext over plain HTTP, so if the desk is reachable from the
+internet, put HTTPS in front before unlocking it there.
+
+Picks are stored in **`picks.json`** (at `PICKS_PATH`), not just the
+database — every scrape run syncs the file into the database, so it is the
+source of truth: entries added there appear as `manual` rows, and manual
+rows missing from it are removed. That makes publishing picks on the static
+GitHub Pages deployment a plain-text git operation:
+
+1. Run the server locally with `ADMIN_TOKEN` set and file your picks.
+2. Commit and push `picks.json` (just the text file — leave
+   `internships.db` to the Actions bot, two writers of a binary file means
+   merge conflicts).
+3. The next Actions run syncs your picks into the database and exports them
+   to `static/data.json`.
+
+Note for Docker: the container keeps its data on the `/data` volume
+(`PICKS_PATH=/data/picks.json`), not in the repo — picks filed against a
+container serve fine from that container, but to publish them via Pages
+copy the file out first: `docker compose cp wire:/data/picks.json picks.json`.
 
 ## How each source works
 
@@ -160,6 +207,11 @@ blocked, raise `delay_seconds`, lower `pages_per_query`, or run
 | `GET /api/internships?q=&source=&days=&limit=` | filtered listings, newest first |
 | `GET /api/stats` | totals per source, last scrape time, scrape-in-progress flag |
 | `POST /api/refresh` | run scrapers in the background (409 if already running) |
+| `GET /api/admin/check` 🔒 | validates the admin token |
+| `POST /api/admin/internships` 🔒 | add a hand-picked listing (`url`, `title` required) |
+| `DELETE /api/admin/internships/{id}` 🔒 | remove a listing |
+
+🔒 = requires the `X-Admin-Token` header matching `ADMIN_TOKEN`.
 
 ## Notes
 

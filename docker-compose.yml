@@ -6,6 +6,8 @@ services:
       - "8000:8000"
     environment:
       - SCRAPE_INTERVAL_HOURS=8
+      # set in your shell or a .env file to enable /admin.html
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-}
     volumes:
       - wire-data:/data
 
