@@ -7,4 +7,5 @@ internships.db-wal
 internships.db-shm
 picks.json.tmp
 scrape.log
+.env
 .claude/

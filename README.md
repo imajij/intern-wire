@@ -85,6 +85,14 @@ that same value:
 ADMIN_TOKEN=<secret> .venv/bin/uvicorn app.server:app --port 8000
 ```
 
+Or keep it in a git-ignored `.env` file (`ADMIN_TOKEN=...`) — both
+`uvicorn --env-file .env` and `docker compose up` read it from there:
+
+```bash
+echo "ADMIN_TOKEN=$(openssl rand -hex 24)" > .env
+.venv/bin/uvicorn app.server:app --port 8000 --env-file .env
+```
+
 If `ADMIN_TOKEN` is unset, the admin API is disabled entirely. Writes are
 authenticated per request via the `X-Admin-Token` header; the browser keeps
 the token in localStorage until you hit **LOCK THE DESK**. Pick a long
