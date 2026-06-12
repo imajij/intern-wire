@@ -35,4 +35,13 @@ jobs:
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -q -m "deploy: snapshot of ${GITHUB_SHA::7}"
-          git push --force "https://${HF_SPACE%%/*}:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" HEAD:main
+          # HF rate-limits git pushes from GitHub's shared runner IPs (429s
+          # are routine) — back off and retry before giving up
+          for delay in 0 15 45 90; do
+            sleep "$delay"
+            if git push --force "https://${HF_SPACE%%/*}:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" HEAD:main; then
+              exit 0
+            fi
+          done
+          echo "::error::push to the Space kept failing — re-run this workflow in a few minutes"
+          exit 1
