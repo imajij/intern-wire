@@ -18,6 +18,7 @@ const tallyEl = $("#tally");
 const datelineEl = $("#dateline");
 const statusEl = $("#status-line");
 const lastScrapedEl = $("#last-scraped");
+const circulationEl = $("#circulation");
 
 datelineEl.textContent = new Date()
   .toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
@@ -165,6 +166,47 @@ $("#days").addEventListener("change", (e) => {
   fetchListings();
 });
 
+/* ── visit counters ──
+ * Anonymous and first-party: a random UUID lives in localStorage and is
+ * beaconed once per page load. The server answers with the running totals,
+ * which land in the masthead. Static builds show the as-of-export numbers
+ * baked into data.json. */
+
+const VISITOR_KEY = "wire-visitor-id";
+
+function newVisitorId() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  // plain-http deployments don't get crypto.randomUUID — build one by hand
+  const hex = [...crypto.getRandomValues(new Uint8Array(16))]
+    .map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function renderCirculation(s) {
+  if (!s || !s.total_visits) return; // no traffic data — keep the slot hidden
+  const fmt = (n) => Number(n).toLocaleString("en-US");
+  circulationEl.textContent =
+    `${fmt(s.total_visits)} VISIT${s.total_visits === 1 ? "" : "S"}` +
+    ` · ${fmt(s.monthly_active)} MONTHLY READER${s.monthly_active === 1 ? "" : "S"}`;
+  circulationEl.hidden = false;
+}
+
+async function beaconVisit() {
+  let vid = localStorage.getItem(VISITOR_KEY);
+  if (!vid) {
+    vid = newVisitorId();
+    localStorage.setItem(VISITOR_KEY, vid);
+  }
+  try {
+    const res = await fetch("/api/visit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vid }),
+    });
+    if (res.ok) renderCirculation(await res.json());
+  } catch { /* counters are best-effort, never break the page */ }
+}
+
 /* ── scrape-in-progress banner (server mode only) ── */
 
 function setBusy(busy) {
@@ -195,9 +237,11 @@ async function detectMode() {
 
 (async function boot() {
   mode = await detectMode();
+  if (mode === "server") beaconVisit();
   if (mode === "static") {
     const res = await fetch("data.json");
     staticData = await res.json();
+    renderCirculation(staticData);
     if (!staticData.by_source?.manual) {
       // no picks in this build — the chip would only show a dead-end empty
       // state (remove, not hide, so the X chip becomes :last-child again)

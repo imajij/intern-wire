@@ -138,6 +138,30 @@ def delete(listing_id: str) -> bool:
     return _database().internships.delete_one({"_id": oid}).deleted_count > 0
 
 
+def record_visit(visitor_id: str) -> None:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    _database().visitors.update_one(
+        {"_id": visitor_id},
+        {
+            "$inc": {"visits": 1},
+            "$set": {"last_seen": now},
+            "$setOnInsert": {"first_seen": now},
+        },
+        upsert=True,
+    )
+
+
+def visit_stats() -> dict:
+    db = _database()
+    _, dt_cutoff = _cutoffs(30)
+    total = next(
+        iter(db.visitors.aggregate([{"$group": {"_id": None, "c": {"$sum": "$visits"}}}])),
+        {"c": 0},
+    )["c"]
+    monthly = db.visitors.count_documents({"last_seen": {"$gte": dt_cutoff}})
+    return {"total_visits": total, "monthly_active": monthly}
+
+
 def purge_stale(max_age_days: int) -> int:
     if max_age_days <= 0:
         return 0

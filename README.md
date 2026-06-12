@@ -285,7 +285,8 @@ blocked, raise `delay_seconds`, lower `pages_per_query`, or run
 | Endpoint | Description |
 |---|---|
 | `GET /api/internships?q=&source=&days=&limit=` | filtered listings, newest first |
-| `GET /api/stats` | totals per source, last scrape time, scrape-in-progress flag |
+| `GET /api/stats` | totals per source, last scrape time, visit counters, scrape-in-progress flag |
+| `POST /api/visit` | record a page visit (anonymous localStorage UUID); returns visit totals |
 | `POST /api/refresh` 🔒 | run scrapers in the background (409 if already running) |
 | `GET /api/admin/check` 🔒 | validates the admin token |
 | `POST /api/admin/internships` 🔒 | add a hand-picked listing (`url`, `title` required) |
@@ -299,6 +300,11 @@ blocked, raise `delay_seconds`, lower `pages_per_query`, or run
   containers) or MongoDB when `MONGODB_URI` is set — same JSON API either
   way, deduped by original post URL. Delete the file / drop the database to
   start fresh.
+- The masthead shows first-party visit counters (total visits + readers
+  active in the last 30 days). They're anonymous: the browser keeps a
+  random UUID in localStorage and beacons it on page load — no IPs, no
+  fingerprints, no third-party analytics. Server mode counts live; the
+  static build shows the numbers as of its last export.
 - Both platforms' terms restrict automated collection; this only touches
   public, logged-out pages at low volume. Run it politely and at your own
   discretion.

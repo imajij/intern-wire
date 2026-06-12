@@ -11,6 +11,7 @@ backend can sit behind them:
   from the live site. picks.json is skipped: Mongo is the source of truth.
 """
 
+import datetime
 import os
 
 USING_MONGO = bool(os.environ.get("MONGODB_URI"))
@@ -22,8 +23,10 @@ if USING_MONGO:
         delete,
         list_internships,
         purge_stale,
+        record_visit,
         stats,
         upsert,
+        visit_stats,
     )
 
     def sync_picks() -> dict | None:
@@ -119,6 +122,21 @@ else:
         finally:
             conn.close()
         return True
+
+    def record_visit(visitor_id: str) -> None:
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+        conn = db.connect()
+        try:
+            db.record_visit(conn, visitor_id, now)
+        finally:
+            conn.close()
+
+    def visit_stats() -> dict:
+        conn = db.connect()
+        try:
+            return db.visit_stats(conn)
+        finally:
+            conn.close()
 
     def purge_stale(max_age_days: int) -> int:
         conn = db.connect()

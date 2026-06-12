@@ -30,6 +30,8 @@ def main() -> None:
                 "total": len(items),
                 "by_source": by_source,
                 "last_scraped": last,
+                # as-of-export visit counters; live ones only exist in server mode
+                **store.visit_stats(),
                 "items": items,
             },
             ensure_ascii=False,

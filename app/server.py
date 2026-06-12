@@ -14,6 +14,7 @@ import contextlib
 import datetime
 import os
 import pathlib
+import re
 import secrets
 import threading
 import time
@@ -86,7 +87,24 @@ def list_internships(
 
 @app.get("/api/stats")
 def stats():
-    return {**store.stats(), "scraping": _scrape_lock.locked()}
+    return {**store.stats(), **store.visit_stats(), "scraping": _scrape_lock.locked()}
+
+
+# anonymous first-party visit counter: the browser keeps a random UUID in
+# localStorage and beacons it on each page load — no IPs, no fingerprints
+VID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+class VisitBeacon(BaseModel):
+    vid: str
+
+
+@app.post("/api/visit")
+def record_visit(beacon: VisitBeacon):
+    if not VID_RE.fullmatch(beacon.vid):
+        raise HTTPException(status_code=422, detail="vid must be a lowercase UUID.")
+    store.record_visit(beacon.vid)
+    return store.visit_stats()
 
 
 # ── admin: hand-picked listings + manual refresh (requires ADMIN_TOKEN) ─────

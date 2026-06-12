@@ -32,6 +32,15 @@ CREATE TABLE IF NOT EXISTS seen_urls (
   url        TEXT PRIMARY KEY,
   first_seen TEXT NOT NULL
 );
+
+-- visit counters: one row per distinct browser, identified by a random id
+-- the client keeps in localStorage (no IPs, no fingerprints)
+CREATE TABLE IF NOT EXISTS visitors (
+  id         TEXT PRIMARY KEY,
+  first_seen TEXT NOT NULL,
+  last_seen  TEXT NOT NULL,
+  visits     INTEGER NOT NULL DEFAULT 1
+);
 """
 
 
@@ -101,6 +110,26 @@ def put_manual(conn: sqlite3.Connection, row: dict) -> dict:
     ).fetchone()
     conn.commit()
     return dict(stored)
+
+
+def record_visit(conn: sqlite3.Connection, visitor_id: str, now: str) -> None:
+    conn.execute(
+        """INSERT INTO visitors (id, first_seen, last_seen) VALUES (?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             visits = visits + 1, last_seen = excluded.last_seen""",
+        (visitor_id, now, now),
+    )
+    conn.commit()
+
+
+def visit_stats(conn: sqlite3.Connection) -> dict:
+    total = conn.execute(
+        "SELECT COALESCE(SUM(visits), 0) AS c FROM visitors"
+    ).fetchone()["c"]
+    monthly = conn.execute(
+        "SELECT COUNT(*) AS c FROM visitors WHERE last_seen >= datetime('now', '-30 day')"
+    ).fetchone()["c"]
+    return {"total_visits": total, "monthly_active": monthly}
 
 
 def purge_stale(conn: sqlite3.Connection, max_age_days: int) -> int:

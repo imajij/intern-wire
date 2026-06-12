@@ -44,6 +44,7 @@ body {
 
 .masthead-topline {
   display: flex;
+  flex-wrap: wrap;  /* four items now — let narrow phones stack them */
   justify-content: space-between;
   gap: 12px;
   font-size: 11px;
