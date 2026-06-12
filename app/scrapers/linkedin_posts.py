@@ -15,6 +15,27 @@ from urllib.parse import urlparse
 
 from ddgs import DDGS
 
+# Search indexes return fuzzy matches, so plenty of "I completed my
+# internship!" story posts come back alongside actual openings. A post is
+# kept only if it shows hiring intent and doesn't read like a personal
+# story. Both lists are lowercase substrings, overridable per-deployment
+# via config.json (hiring_terms / exclude_terms; [] disables a check).
+HIRING_TERMS = (
+    "hiring", "we are looking", "we're looking", "looking for intern",
+    "apply", "vacanc", "opening", "recruit", "join our", "join us",
+    "internship opportunit", "stipend", "dm me", "send your resume",
+    "send your cv", "share your resume", "drop your resume",
+    "comment interested",
+)
+EXCLUDE_TERMS = (
+    "my internship", "internship experience", "my experience", "my journey",
+    "completed my", "i completed", "i joined", "i applied", "i got selected",
+    "i received", "selected as an intern", "excited to share that i",
+    "thrilled to share that i", "happy to share that i", "grateful",
+    "thankful", "my time at", "wrapped up my", "what i learned",
+    "congratulations",
+)
+
 # titles look like: 'Author Name on LinkedIn: Hiring interns! … | 26 comments'
 _TITLE_RE = re.compile(r"^(?P<author>.{2,80}?) on LinkedIn:\s*(?P<rest>.+)$", re.S)
 _SUFFIX_RE = re.compile(
@@ -40,7 +61,15 @@ def scrape(
     timeframe: str = "w",  # freshness: d=day, w=week, m=month
     region: str = "in-en",
     max_per_query: int = 25,
+    hiring_terms: list[str] | None = None,
+    exclude_terms: list[str] | None = None,
 ) -> list[dict]:
+    hiring_terms = (
+        HIRING_TERMS if hiring_terms is None else [t.lower() for t in hiring_terms]
+    )
+    exclude_terms = (
+        EXCLUDE_TERMS if exclude_terms is None else [t.lower() for t in exclude_terms]
+    )
     scraped_at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     results: list[dict] = []
     seen: set[str] = set()
@@ -59,7 +88,7 @@ def scrape(
             except Exception as exc:  # backend rate limits etc. — skip query
                 print(f"  [li-posts] {query!r}: failed ({exc})")
                 continue
-            kept = 0
+            kept = stories = no_intent = 0
             for hit in hits:
                 url = _canonical(hit.get("href", ""))
                 if not url or url in seen:
@@ -71,8 +100,15 @@ def scrape(
                 if match:
                     author = match.group("author").strip()
                     title = match.group("rest")
-                if "intern" not in f"{title} {snippet}".lower():
+                text = f"{title} {snippet}".lower()
+                if "intern" not in text:
                     continue  # stay internship-focused
+                if any(t in text for t in exclude_terms):
+                    stories += 1
+                    continue  # someone's internship story, not an opening
+                if hiring_terms and not any(t in text for t in hiring_terms):
+                    no_intent += 1
+                    continue  # mentions interns but isn't offering anything
                 seen.add(url)
                 kept += 1
                 results.append(
@@ -87,6 +123,9 @@ def scrape(
                         "snippet": snippet or None,
                     }
                 )
-            print(f"  [li-posts] {query!r}: {len(hits)} results, {kept} kept")
+            print(
+                f"  [li-posts] {query!r}: {len(hits)} results, {kept} kept"
+                f" ({stories} stories, {no_intent} without hiring intent)"
+            )
             time.sleep(2 + random.random())
     return results

@@ -69,6 +69,8 @@ def run(sources: tuple[str, ...] = ALL_SOURCES) -> dict:
             timeframe=lp.get("timeframe", "w"),
             region=lp.get("region", "in-en"),
             max_per_query=lp.get("max_per_query", 25),
+            hiring_terms=lp.get("hiring_terms"),
+            exclude_terms=lp.get("exclude_terms"),
         )
         rows = drop_stale(rows, max_age_days, "li-posts")
         counts["linkedin_posts"] = {"found": len(rows), "new": store.upsert(rows, max_age_days)}

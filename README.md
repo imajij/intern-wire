@@ -63,7 +63,12 @@ curl -X POST -H "X-Admin-Token: <your token>" http://127.0.0.1:8000/api/refresh
     "queries": ["site:linkedin.com/posts \"hiring interns\"", "..."],
     "timeframe": "w",           // search freshness: d / w / m
     "region": "in-en",
-    "max_per_query": 25
+    "max_per_query": 25,
+    // optional: override the built-in hiring-intent filter (see below).
+    // Posts must contain a hiring_terms entry and no exclude_terms entry;
+    // set either to [] to disable that half of the filter.
+    "hiring_terms": ["hiring", "apply", "stipend", "..."],
+    "exclude_terms": ["my internship", "i got selected", "..."]
   },
   "twitter": {
     "accounts": ["Internshala", "GitHubEducation"],  // timelines to follow
@@ -148,8 +153,15 @@ copy the file out first: `docker compose cp wire:/data/picks.json picks.json`.
   The `ddgs` library queries those indexes (rotating across search backends,
   no API key) for fresh internship-hiring posts. Noisier than the jobs feed
   and post dates aren't available, but it catches the informal "DM me to
-  apply" openings that never become job listings. Tune the search queries in
-  `config.json` (`linkedin_posts.queries`, freshness `timeframe`: d/w/m).
+  apply" openings that never become job listings. Because the indexes match
+  fuzzily, results include "I completed my internship!" story posts — so a
+  hiring-intent filter keeps a post only if it contains a hiring signal
+  ("hiring", "apply", "stipend", …) and none of the personal-story markers
+  ("my internship", "i got selected", "grateful", …). The built-in lists
+  live in `app/scrapers/linkedin_posts.py`; override them per-deployment
+  with `linkedin_posts.hiring_terms` / `exclude_terms` in `config.json`.
+  Tune the search queries there too (`linkedin_posts.queries`, freshness
+  `timeframe`: d/w/m).
 - **X/Twitter** — X removed logged-out search in 2024 and the public Nitter
   mirrors are bot-walled, so keyword search without an account isn't
   possible. Instead the scraper follows accounts via X's public syndication
