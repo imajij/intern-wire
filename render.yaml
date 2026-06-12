@@ -13,7 +13,7 @@ services:
         sync: false
       # free instances sleep when idle, so the in-process scheduler can't be
       # trusted with scraping — let the GitHub Actions cron write to Atlas
-      # instead (set the MONGODB_URI repo secret). The dashboard's RE-SCRAPE
-      # button still triggers on-demand runs.
+      # instead (set the MONGODB_URI repo secret). POST /api/refresh with the
+      # admin token still triggers an on-demand run.
       - key: SCRAPE_INTERVAL_HOURS
         value: "0"

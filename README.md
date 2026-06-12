@@ -36,8 +36,13 @@ docker compose up -d --build                        # http://localhost:8000
 ```
 
 On first boot with an empty database the server scrapes immediately, then
-every `SCRAPE_INTERVAL_HOURS` (default 8) after that. The **RE-SCRAPE ⟳**
-button on the dashboard triggers one on demand.
+every `SCRAPE_INTERVAL_HOURS` (default 8) after that. Admins can trigger
+one on demand (the endpoint is token-gated — an open scrape trigger would
+invite abuse and get the host's IP rate-limited):
+
+```bash
+curl -X POST -H "X-Admin-Token: <your token>" http://127.0.0.1:8000/api/refresh
+```
 
 ## Configuration (`config.json`)
 
@@ -161,8 +166,7 @@ No server at all: a GitHub Actions workflow
 (`.github/workflows/scrape.yml`) scrapes every 8 hours, commits the updated
 database, and publishes the dashboard to GitHub Pages. The dashboard
 detects there's no backend and switches to client-side filtering over
-`static/data.json` (the RE-SCRAPE button hides itself; GitHub's cron does
-that job).
+`static/data.json`.
 
 1. Push this folder to a **public** GitHub repo (public = free unlimited
    Actions minutes + free Pages).
@@ -282,7 +286,7 @@ blocked, raise `delay_seconds`, lower `pages_per_query`, or run
 |---|---|
 | `GET /api/internships?q=&source=&days=&limit=` | filtered listings, newest first |
 | `GET /api/stats` | totals per source, last scrape time, scrape-in-progress flag |
-| `POST /api/refresh` | run scrapers in the background (409 if already running) |
+| `POST /api/refresh` 🔒 | run scrapers in the background (409 if already running) |
 | `GET /api/admin/check` 🔒 | validates the admin token |
 | `POST /api/admin/internships` 🔒 | add a hand-picked listing (`url`, `title` required) |
 | `DELETE /api/admin/internships/{id}` 🔒 | remove a listing |

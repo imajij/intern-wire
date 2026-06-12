@@ -18,7 +18,6 @@ const tallyEl = $("#tally");
 const datelineEl = $("#dateline");
 const statusEl = $("#status-line");
 const lastScrapedEl = $("#last-scraped");
-const refreshBtn = $("#refresh");
 
 datelineEl.textContent = new Date()
   .toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
@@ -166,11 +165,9 @@ $("#days").addEventListener("change", (e) => {
   fetchListings();
 });
 
-/* ── re-scrape (server mode only) ── */
+/* ── scrape-in-progress banner (server mode only) ── */
 
 function setBusy(busy) {
-  refreshBtn.disabled = busy;
-  refreshBtn.classList.toggle("is-busy", busy);
   statusEl.hidden = !busy;
   if (busy) statusEl.textContent = "● SCRAPING THE WIRE — new listings will appear shortly…";
 }
@@ -184,14 +181,6 @@ async function pollUntilDone(timeoutMs = 180000) {
     if (s && !s.scraping) return;
   }
 }
-
-refreshBtn.addEventListener("click", async () => {
-  const res = await fetch("/api/refresh", { method: "POST" });
-  if (res.status === 409) return; // already running
-  setBusy(true);
-  await pollUntilDone();
-  setBusy(false);
-});
 
 /* ── boot ── */
 
@@ -207,7 +196,6 @@ async function detectMode() {
 (async function boot() {
   mode = await detectMode();
   if (mode === "static") {
-    refreshBtn.hidden = true; // no backend to trigger; GitHub Actions re-scrapes
     const res = await fetch("data.json");
     staticData = await res.json();
     if (!staticData.by_source?.manual) {

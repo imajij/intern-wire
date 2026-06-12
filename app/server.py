@@ -89,15 +89,7 @@ def stats():
     return {**store.stats(), "scraping": _scrape_lock.locked()}
 
 
-@app.post("/api/refresh")
-def refresh(background_tasks: BackgroundTasks):
-    if _scrape_lock.locked():
-        return JSONResponse({"status": "already-running"}, status_code=409)
-    background_tasks.add_task(_locked_scrape, "manual refresh")
-    return {"status": "started"}
-
-
-# ── admin: hand-picked listings (requires ADMIN_TOKEN) ──────────────────────
+# ── admin: hand-picked listings + manual refresh (requires ADMIN_TOKEN) ─────
 
 AUTH_WINDOW_SECONDS = 60.0
 AUTH_MAX_FAILURES = 10
@@ -137,6 +129,16 @@ class ManualListing(BaseModel):
 @app.get("/api/admin/check", dependencies=[Depends(require_admin)])
 def admin_check():
     return {"status": "ok"}
+
+
+# admin-only: every call fires real scraper traffic at LinkedIn/X from this
+# host's IP, so an open endpoint invites both server load and IP bans
+@app.post("/api/refresh", dependencies=[Depends(require_admin)])
+def refresh(background_tasks: BackgroundTasks):
+    if _scrape_lock.locked():
+        return JSONResponse({"status": "already-running"}, status_code=409)
+    background_tasks.add_task(_locked_scrape, "manual refresh")
+    return {"status": "started"}
 
 
 @app.post(
