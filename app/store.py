@@ -17,6 +17,7 @@ import os
 USING_MONGO = bool(os.environ.get("MONGODB_URI"))
 
 if USING_MONGO:
+    from . import mongo, picks
     from .mongo import (  # noqa: F401
         add_manual,
         count,
@@ -30,8 +31,10 @@ if USING_MONGO:
     )
 
     def sync_picks() -> dict | None:
-        """picks.json is a SQLite-mode concept; manual rows live in Mongo."""
-        return None
+        """Sync tracked curated picks while preserving live-admin Mongo rows."""
+        if not picks.PICKS_PATH.exists():
+            return None
+        return mongo.sync_file_picks(picks.load())
 
 else:
     from . import db, picks

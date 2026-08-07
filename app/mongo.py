@@ -5,9 +5,9 @@ scraped_at, deduped by a unique index on url), so the JSON API and the
 frontend don't change. All date comparisons are lexicographic, which is
 correct because every writer in this codebase emits the same ISO format.
 
-The API exposes the ObjectId hex string as `id`. picks.json is not used in
-this mode: Mongo is durable and no scraper bot rewrites it, so manual rows
-simply live in the collection.
+The API exposes the ObjectId hex string as `id`. File-curated picks are marked
+in this mode so their later removal never touches manual rows created through
+the admin page.
 """
 
 import datetime
@@ -128,6 +128,36 @@ def add_manual(row: dict) -> dict | None:
         return_document=ReturnDocument.AFTER,
     )
     return _item(doc)
+
+
+def sync_file_picks(file_picks: list[dict], coll=None) -> dict:
+    """Mirror file-curated picks without deleting admin-created manual rows."""
+    if coll is None:
+        coll = _database().internships
+    synced = 0
+    urls = []
+    today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    for pick in file_picks:
+        if not (pick.get("title") or "").strip():
+            print(f"  [picks] skipping {pick['url']}: no title")
+            continue
+        row = {field: pick.get(field) for field in FIELDS if field != "source"}
+        row.update(
+            source="manual",
+            posted_at=pick.get("posted_at") or today,
+            scraped_at=pick.get("scraped_at") or now,
+            curated_from_file=True,
+        )
+        coll.update_one({"url": row["url"]}, {"$set": row}, upsert=True)
+        urls.append(row["url"])
+        synced += 1
+    removed = coll.delete_many({
+        "source": "manual",
+        "curated_from_file": True,
+        "url": {"$nin": urls},
+    }).deleted_count
+    return {"picks": synced, "removed": removed}
 
 
 def delete(listing_id: str) -> bool:
