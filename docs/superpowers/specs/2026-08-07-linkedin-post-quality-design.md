@@ -20,10 +20,13 @@ independent of search-engine indexing.
 ## Data model and flow
 
 Curated posts will live in the existing version-controlled `picks.json`
-format. They are promoted into storage on each scrape/export run and therefore
-survive search-index changes and normal stale-listing cleanup. The supplied
-short links remain the destination URLs because the current environment cannot
-resolve their redirects (the service responds with HTTP 403).
+format. They are promoted into both storage backends on each scrape/export
+run and therefore survive search-index changes and normal stale-listing
+cleanup. In MongoDB, file-synced picks carry a dedicated marker, so updates or
+removals affect only those entries and never an admin-created manual listing.
+The supplied short links remain the destination URLs because the current
+environment cannot resolve their redirects (the service responds with HTTP
+403).
 
 The LinkedIn feed-post scraper will classify search result text in two stages:
 
@@ -45,6 +48,8 @@ scraper so automated tests describe the public behavior.
 - A failed search backend continues to skip only that query, as today.
 - Bad or duplicate links in curated picks are handled by the existing picks
   validation and URL de-duplication.
+- MongoDB sync deletes only entries previously marked as file-synced; it does
+  not delete manual entries created through the live admin page.
 - The manual links are not fetched during scraping, so an unavailable
   LinkedIn shortener cannot break a scrape.
 
@@ -54,6 +59,8 @@ Tests will exercise the pure post-classification behavior before integrating
 it with DDGS. They will cover:
 
 - each supplied curated pick being exported as a manual listing;
+- file-synced picks being inserted in MongoDB without deleting an unmarked
+  admin-created manual listing;
 - valid job posts with role and application evidence being accepted;
 - personal experience announcements and internship commentary being rejected;
 - ambiguous "internship" search results without vacancy evidence being
