@@ -412,32 +412,11 @@ git commit -m "fix: sync curated picks to Mongo"
 - Consumes: `linkedin_posts.hiring_terms`, `linkedin_posts.application_terms`, and `linkedin_posts.exclude_terms` from `config.json` when configured.
 - Produces: concise operational documentation for the static GitHub Pages build and Mongo-backed Space.
 
-- [ ] **Step 1: Write a failing documentation-regression test**
-
-Add a test to `tests/test_linkedin_posts.py` that reads `README.md` and asserts the three override names and `curated_from_file` are documented:
-
-```python
-def test_readme_documents_the_post_evidence_and_mongo_pick_rules(self):
-    readme = pathlib.Path("README.md").read_text()
-    self.assertIn("application_terms", readme)
-    self.assertIn("hiring_terms", readme)
-    self.assertIn("exclude_terms", readme)
-    self.assertIn("curated_from_file", readme)
-```
-
-Add `import pathlib` with the other test imports.
-
-- [ ] **Step 2: Run the focused documentation test and verify the expected red state**
-
-Run: `python -m unittest tests.test_linkedin_posts.LinkedInPostClassifierTests.test_readme_documents_the_post_evidence_and_mongo_pick_rules -v`
-
-Expected: FAIL because the README does not yet document `application_terms` or the Mongo marker.
-
-- [ ] **Step 3: Update the operational documentation**
+- [ ] **Step 1: Update the operational documentation**
 
 Revise the LinkedIn-post source section to say a scraped result needs both vacancy intent (`hiring_terms`) and an application/contact route (`application_terms`) and must have no `exclude_terms` marker. Revise the configuration example to show all three optional lists. In the Hugging Face section, state that tracked `picks.json` is synchronized by the GitHub scrape job to MongoDB, and that only rows marked `curated_from_file` are cleaned up by subsequent file syncs.
 
-- [ ] **Step 4: Run all unit tests and a temporary SQLite export verification**
+- [ ] **Step 2: Run all unit tests and a temporary SQLite export verification**
 
 Run: `python -m unittest discover -s tests -v`
 
@@ -454,10 +433,10 @@ python -c 'import json; data=json.load(open("/tmp/intern-wire-data.json")); urls
 
 Expected: the JSON export contains all three supplied URLs as `manual` listings.
 
-- [ ] **Step 5: Commit the documentation**
+- [ ] **Step 3: Commit the documentation and plan correction**
 
 ```bash
-git add README.md tests/test_linkedin_posts.py
+git add README.md docs/superpowers/plans/2026-08-07-linkedin-post-quality.md
 git commit -m "docs: explain LinkedIn post quality rules"
 ```
 

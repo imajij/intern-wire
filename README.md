@@ -64,10 +64,11 @@ curl -X POST -H "X-Admin-Token: <your token>" http://127.0.0.1:8000/api/refresh
     "timeframe": "w",           // search freshness: d / w / m
     "region": "in-en",
     "max_per_query": 25,
-    // optional: override the built-in hiring-intent filter (see below).
-    // Posts must contain a hiring_terms entry and no exclude_terms entry;
-    // set either to [] to disable that half of the filter.
-    "hiring_terms": ["hiring", "apply", "stipend", "..."],
+    // optional: override the built-in vacancy-evidence filter (see below).
+    // Posts must contain both a hiring_terms and application_terms entry,
+    // and no exclude_terms entry.
+    "hiring_terms": ["hiring", "opening", "..."],
+    "application_terms": ["apply", "send your resume", "..."],
     "exclude_terms": ["my internship", "i got selected", "..."]
   },
   "twitter": {
@@ -89,7 +90,7 @@ Environment variables (all optional):
 | `MONGODB_URI` | *(unset)* | store data in MongoDB instead of SQLite — no disk needed (see [MongoDB Atlas + Hugging Face Spaces](#mongodb-atlas--hugging-face-spaces-free-live-admin-page)) |
 | `PORT` | `8000` | listen port (set automatically by most PaaS hosts) |
 | `ADMIN_TOKEN` | *(unset)* | enables the Editor's Desk admin page + API; unset = admin disabled |
-| `PICKS_PATH` | `./picks.json` | where hand-picked listings live (SQLite mode only; containers use `/data/picks.json`) |
+| `PICKS_PATH` | `./picks.json` | where file-curated listings live (containers use `/data/picks.json`) |
 
 ## The Editor's Desk (admin)
 
@@ -122,14 +123,13 @@ rate-limited, but a guessable token is still a guessable token. The header
 travels in cleartext over plain HTTP, so if the desk is reachable from the
 internet, put HTTPS in front before unlocking it there.
 
-In **MongoDB mode** (`MONGODB_URI` set) picks simply live in the database —
-nothing below applies, and admins can file picks from the deployed site
-directly. In **SQLite mode** picks are stored in **`picks.json`** (at
-`PICKS_PATH`), not just the database — every scrape run syncs the file into
-the database, so it is the source of truth: entries added there appear as
-`manual` rows, and manual rows missing from it are removed. That makes
-publishing picks on the static GitHub Pages deployment a plain-text git
-operation:
+Admins can file live picks directly in **MongoDB mode** (`MONGODB_URI` set).
+Tracked curated picks still live in **`picks.json`** (at `PICKS_PATH`) and
+every scrape run syncs them into both storage backends. SQLite treats the file
+as the complete manual-pick source of truth. Mongo marks file-synced entries
+as `curated_from_file`, so a later file update removes only those marked rows
+and never an admin-created manual pick. That makes publishing curated picks on
+the static GitHub Pages deployment a plain-text git operation:
 
 1. Run the server locally with `ADMIN_TOKEN` set and file your picks.
 2. Commit and push `picks.json` (just the text file — leave
@@ -155,11 +155,13 @@ copy the file out first: `docker compose cp wire:/data/picks.json picks.json`.
   and post dates aren't available, but it catches the informal "DM me to
   apply" openings that never become job listings. Because the indexes match
   fuzzily, results include "I completed my internship!" story posts — so a
-  hiring-intent filter keeps a post only if it contains a hiring signal
-  ("hiring", "apply", "stipend", …) and none of the personal-story markers
+  vacancy-evidence filter keeps a post only if it contains both a vacancy
+  signal ("hiring", "opening", …) and an application/contact signal
+  ("apply", "send your resume", …), with none of the personal-story markers
   ("my internship", "i got selected", "grateful", …). The built-in lists
   live in `app/scrapers/linkedin_posts.py`; override them per-deployment
-  with `linkedin_posts.hiring_terms` / `exclude_terms` in `config.json`.
+  with `linkedin_posts.hiring_terms`, `application_terms`, and
+  `exclude_terms` in `config.json`.
   Tune the search queries there too (`linkedin_posts.queries`, freshness
   `timeframe`: d/w/m).
 - **X/Twitter** — X removed logged-out search in 2024 and the public Nitter
@@ -235,9 +237,10 @@ Free Spaces pause after ~48h without visitors (the next visit wakes them in
 under a minute), and the in-process scheduler only runs while awake — so
 also add `MONGODB_URI` as a GitHub Actions secret (**Settings → Secrets and
 variables → Actions**) and the existing scrape workflow writes straight to
-Atlas every 8 hours regardless. The Pages site keeps working too:
-`app.export` reads Atlas and publishes the same data. Both writers dedupe
-on URL, so they can't conflict.
+Atlas every 8 hours regardless. That job also synchronizes tracked
+`picks.json` entries to Atlas, so file-curated posts appear in the live Space.
+The Pages site keeps working too: `app.export` reads Atlas and publishes the
+same data. Both writers dedupe on URL, so they can't conflict.
 
 To run Mongo mode locally:
 `MONGODB_URI=... ADMIN_TOKEN=... .venv/bin/uvicorn app.server:app --port 8000`.

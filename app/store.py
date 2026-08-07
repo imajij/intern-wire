@@ -8,7 +8,8 @@ backend can sit behind them:
   hand-picks must live in a mergeable text file.
 - MongoDB (e.g. a free Atlas cluster) needs no disk at all, which lets the
   server run on free hosts like Render and lets the Editor's Desk write
-  from the live site. picks.json is skipped: Mongo is the source of truth.
+  from the live site. Tracked file-curated picks are synchronized without
+  disturbing manual rows added through the live site.
 """
 
 import datetime
