@@ -70,6 +70,7 @@ def run(sources: tuple[str, ...] = ALL_SOURCES) -> dict:
             region=lp.get("region", "in-en"),
             max_per_query=lp.get("max_per_query", 25),
             hiring_terms=lp.get("hiring_terms"),
+            application_terms=lp.get("application_terms"),
             exclude_terms=lp.get("exclude_terms"),
         )
         rows = drop_stale(rows, max_age_days, "li-posts")

@@ -11,21 +11,24 @@ import datetime
 import random
 import re
 import time
+from collections.abc import Sequence
 from urllib.parse import urlparse
 
 from ddgs import DDGS
 
 # Search indexes return fuzzy matches, so plenty of "I completed my
 # internship!" story posts come back alongside actual openings. A post is
-# kept only if it shows hiring intent and doesn't read like a personal
-# story. Both lists are lowercase substrings, overridable per-deployment
-# via config.json (hiring_terms / exclude_terms; [] disables a check).
+# kept only if it offers a vacancy, points to an application/contact route,
+# and doesn't read like a personal story. Lists are lowercase substrings,
+# overridable per-deployment via config.json.
 HIRING_TERMS = (
     "hiring", "we are looking", "we're looking", "looking for intern",
-    "apply", "vacanc", "opening", "recruit", "join our", "join us",
-    "internship opportunit", "stipend", "dm me", "send your resume",
-    "send your cv", "share your resume", "drop your resume",
-    "comment interested",
+    "vacanc", "opening", "recruit", "join our", "join us",
+)
+APPLICATION_TERMS = (
+    "apply", "application", "apply here", "apply now", "dm me",
+    "send your resume", "send your cv", "share your resume",
+    "drop your resume", "email your resume", "comment interested",
 )
 EXCLUDE_TERMS = (
     "my internship", "internship experience", "my experience", "my journey",
@@ -56,19 +59,41 @@ def _canonical(href: str) -> str | None:
     return f"https://www.linkedin.com{parsed.path}"
 
 
+def is_internship_opening(
+    text: str,
+    hiring_terms: Sequence[str] = HIRING_TERMS,
+    application_terms: Sequence[str] = APPLICATION_TERMS,
+    exclude_terms: Sequence[str] = EXCLUDE_TERMS,
+) -> bool:
+    """Whether indexed post text contains concrete internship vacancy evidence."""
+    text = text.casefold()
+    return (
+        "intern" in text
+        and not any(term in text for term in exclude_terms)
+        and any(term in text for term in hiring_terms)
+        and any(term in text for term in application_terms)
+    )
+
+
 def scrape(
     queries: list[str],
     timeframe: str = "w",  # freshness: d=day, w=week, m=month
     region: str = "in-en",
     max_per_query: int = 25,
     hiring_terms: list[str] | None = None,
+    application_terms: list[str] | None = None,
     exclude_terms: list[str] | None = None,
 ) -> list[dict]:
     hiring_terms = (
-        HIRING_TERMS if hiring_terms is None else [t.lower() for t in hiring_terms]
+        HIRING_TERMS if hiring_terms is None else [t.casefold() for t in hiring_terms]
+    )
+    application_terms = (
+        APPLICATION_TERMS
+        if application_terms is None
+        else [t.casefold() for t in application_terms]
     )
     exclude_terms = (
-        EXCLUDE_TERMS if exclude_terms is None else [t.lower() for t in exclude_terms]
+        EXCLUDE_TERMS if exclude_terms is None else [t.casefold() for t in exclude_terms]
     )
     scraped_at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     results: list[dict] = []
@@ -88,7 +113,7 @@ def scrape(
             except Exception as exc:  # backend rate limits etc. — skip query
                 print(f"  [li-posts] {query!r}: failed ({exc})")
                 continue
-            kept = stories = no_intent = 0
+            kept = stories = no_evidence = 0
             for hit in hits:
                 url = _canonical(hit.get("href", ""))
                 if not url or url in seen:
@@ -100,15 +125,15 @@ def scrape(
                 if match:
                     author = match.group("author").strip()
                     title = match.group("rest")
-                text = f"{title} {snippet}".lower()
-                if "intern" not in text:
-                    continue  # stay internship-focused
+                text = f"{title} {snippet}".casefold()
                 if any(t in text for t in exclude_terms):
                     stories += 1
                     continue  # someone's internship story, not an opening
-                if hiring_terms and not any(t in text for t in hiring_terms):
-                    no_intent += 1
-                    continue  # mentions interns but isn't offering anything
+                if not is_internship_opening(
+                    text, hiring_terms, application_terms, exclude_terms
+                ):
+                    no_evidence += 1
+                    continue  # not enough evidence of a real opening
                 seen.add(url)
                 kept += 1
                 results.append(
@@ -125,7 +150,7 @@ def scrape(
                 )
             print(
                 f"  [li-posts] {query!r}: {len(hits)} results, {kept} kept"
-                f" ({stories} stories, {no_intent} without hiring intent)"
+                f" ({stories} stories, {no_evidence} without vacancy evidence)"
             )
             time.sleep(2 + random.random())
     return results
