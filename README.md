@@ -10,6 +10,9 @@ pinned: false
 
 # The Intern Wire
 
+[![Test](https://github.com/imajij/intern-wire/actions/workflows/test.yml/badge.svg)](https://github.com/imajij/intern-wire/actions/workflows/test.yml)
+[![Scrape & Deploy](https://github.com/imajij/intern-wire/actions/workflows/scrape.yml/badge.svg)](https://github.com/imajij/intern-wire/actions/workflows/scrape.yml)
+
 Scrapes internships from **LinkedIn job listings**, **LinkedIn feed posts**
 (the informal "Hiring: …" posts), and **X/Twitter** — no login or signup
 anywhere — and shows them in a dashboard where every listing links straight
@@ -20,6 +23,40 @@ stays fresh with zero extra setup. Listings older than `max_age_days`
 every run, so the wire never goes stale. An **Editor's Desk** admin page
 lets you hand-pick listings that appear alongside the scraped ones.
 
+## Architecture
+
+```
+ scrapers (app/scrapers/)          app/scrape.py                storage (app/store.py)
+ ┌─────────────────────────┐   ┌──────────────────────┐    ┌──────────────────────────┐
+ │ linkedin.py  jobs-guest │──►│ purge_stale          │───►│ SQLite (app/db.py)       │
+ │ linkedin_posts.py  ddgs │──►│ sync picks.json      │    │   default; dedup on URL  │
+ │ twitter.py  syndication │──►│ drop_stale + upsert  │    │ MongoDB (app/mongo.py)   │
+ └─────────────────────────┘   └──────────────────────┘    │   when MONGODB_URI set   │
+                                                            └────────────┬─────────────┘
+                     ┌───────────────────────────────────────────────────┤
+                     ▼                                                   ▼
+        app/server.py (FastAPI)                             app/export.py
+        JSON API + static/ dashboard                        static/data.json (≤2000 rows)
+        in-process scheduler (every 8h)                     served by GitHub Pages;
+        token-gated admin API                               dashboard filters client-side
+```
+
+- **Scrapers** each return plain row dicts (`source, title, company, location,
+  url, posted_at, scraped_at, snippet`); they never touch storage.
+- **`app/scrape.py`** is the single pipeline: purge stale rows, sync
+  hand-picks from `picks.json`, then scrape each source, drop rows posted
+  before `max_age_days`, and upsert the rest.
+- **`app/store.py`** is a facade chosen at import time: SQLite (`app/db.py`)
+  by default, MongoDB (`app/mongo.py`) when `MONGODB_URI` is set. Both dedupe
+  on the original post URL. SQLite also keeps a `seen_urls` table so a purged
+  dateless post can't come back looking new.
+- **Two deployment modes** share the same frontend (`static/app.js`): server
+  mode calls `/api/*`; static mode (GitHub Pages) loads `data.json`, which
+  the `scrape.yml` workflow regenerates every 8 hours.
+- **CI**: `test.yml` runs `ruff check` and `pytest` on every push/PR to
+  `main`; `scrape.yml` runs the scrape + Pages deploy; `sync-to-hf.yml`
+  mirrors to a Hugging Face Space when configured.
+
 ## Run locally
 
 ```bash
@@ -27,6 +64,14 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m app.scrape                      # optional manual scrape
 .venv/bin/uvicorn app.server:app --port 8000        # http://127.0.0.1:8000
+```
+
+Run the tests and linter:
+
+```bash
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/ruff check .
+.venv/bin/pytest -q
 ```
 
 Or with Docker:
